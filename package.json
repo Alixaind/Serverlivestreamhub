@@ -1,0 +1,13 @@
+{
+  "name": "trtc-auth-server",
+  "version": "1.0.0",
+  "description": "Tencent TRTC UserSig Generator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "tencentcloud-im-sdk-nodejs-platform": "^1.0.1"
+  }
+}
