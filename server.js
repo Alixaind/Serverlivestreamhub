@@ -1,23 +1,20 @@
 // server.js
 
 const express = require('express');
-const { generateUserSig } = require('tencentcloud-im-sdk-nodejs-platform');
+const TLSSigAPIv2 = require('tls-sig-api-v2'); // Menggunakan paket yang benar
 const app = express();
 
 // Konfigurasi Port
-// Jika di deploy (misalnya di Vercel/Render), port akan diset otomatis.
-// Jika di lokal, gunakan port 3000.
 const PORT = process.env.PORT || 3000;
 
-// --- KONFIGURASI KUNCI RAHASIA ---
-// Kunci diambil dari Environment Variables (Wajib untuk keamanan di Production)
-const SDKAPPID = process.env.20030220;
-const SECRETKEY = process.env.7b491865319b8c2941970eff1b6291688d042bc31bb444c724eb62053bd04d31;
-// ---------------------------------
+// --- KONFIGURASI KUNCI RAHASIA (DIAMBIL DARI ENVIRONMENT VARIABLES) ---
+// HARAP PERHATIKAN NAMA VARIABEL INI HARUS SAMA DENGAN YANG DISET DI VERCEL
+const SDKAPPID = process.env.TRTC_SDK_APP_ID; 
+const SECRETKEY = process.env.TRTC_SECRET_KEY;
+// ---------------------------------------------------------------------
 
-// Middleware CORS: Mengizinkan frontend (Web) Anda mengakses API ini
+// Middleware CORS
 app.use((req, res, next) => {
-    // Ganti '*' dengan domain frontend Anda yang sebenarnya jika sudah production
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type');
@@ -29,16 +26,14 @@ app.use(express.json());
 
 /**
  * Endpoint Utama: Menghasilkan UserSig
- * Method: POST
- * Body: { "userId": "user_anchor_1" }
  */
 app.post('/generateUserSig', (req, res) => {
     const { userId } = req.body;
     
-    // Validasi Konfigurasi
+    // Validasi Konfigurasi: Pastikan Env Var sudah diset di Vercel
     if (!SDKAPPID || !SECRETKEY) {
-        console.error('Error: TRTC_SDK_APP_ID atau TRTC_SECRET_KEY tidak diset!');
-        return res.status(500).json({ error: 'Server key not configured.' });
+        console.error('Error: TRTC_SDK_APP_ID atau TRTC_SECRET_KEY belum diset di Vercel.');
+        return res.status(500).json({ error: 'Server key not configured. Check Environment Variables.' });
     }
     
     // Validasi Input
@@ -47,15 +42,16 @@ app.post('/generateUserSig', (req, res) => {
     }
 
     try {
-        // Masa berlaku UserSig: 7 hari (dapat disesuaikan)
-        const EXPIRATION_TIME = 86400 * 7; 
+        const EXPIRATION_TIME = 86400 * 7; // Masa berlaku 7 hari
         
-        // Panggil library enkripsi Tencent
-        const userSig = generateUserSig(parseInt(SDKAPPID), SECRETKEY, userId, EXPIRATION_TIME);
+        // 1. Inisialisasi API
+        const api = new TLSSigAPIv2.Api(parseInt(SDKAPPID), SECRETKEY);
+        
+        // 2. Panggil fungsi untuk menghasilkan UserSig
+        const userSig = api.genSig(userId, EXPIRATION_TIME);
         
         console.log(`[AUTH] UserSig generated for: ${userId}`);
         
-        // Kirim UserSig kembali ke frontend
         res.json({
             code: 0,
             message: 'Success',
